@@ -16,7 +16,7 @@ to the Arduino:
 
     $ platformio run --target upload
 
-Wire up the Mega2560 to a breadboard following the pin mapping at the top of src/arduino.cpp.
+Wire up the Mega2560 to a breadboard following the pin mapping at the top of [src/arduino.cpp](src/arduino.cpp).
 
 With the shield attached to the Uno and hooked up to a computer, fire up the
 Python client. To write an image to the EEPROM:
