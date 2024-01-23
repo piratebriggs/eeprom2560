@@ -7,24 +7,35 @@
  * 
  * Pin | Circuit
  * ----+--------------
- *   2 | EEPROM IO0
- *   3 | EEPROM IO1
- *   4 | EEPROM IO2
- *   5 | EEPROM IO3
- *   6 | EEPROM IO4
- *   7 | EEPROM IO5
- *   8 | EEPROM IO6
- *   9 | EEPROM IO7
+ *  49 | EEPROM IO0 (PL0)
+ *  48 | EEPROM IO1
+ *  47 | EEPROM IO2
+ *  46 | EEPROM IO3
+ *  45 | EEPROM IO4
+ *  44 | EEPROM IO5
+ *  43 | EEPROM IO6
+ *  42 | EEPROM IO7 (PL7)
  * ----+--------------
- *  A3 | 74HC595 OE
- *  A4 | 74HC595 SER
- *  11 | 74HC595 SCLK
- *  12 | 74HC595 RCLK
- *  13 | 74HC595 CLR
+ *  22 | A0 (PA0)
+ *  23 | A1
+ *  24 | A2
+ *  25 | A3
+ *  26 | A4
+ *  27 | A5
+ *  28 | A6
+ *  29 | A7 (PA7)
+ *  37 | A8 (PC0)
+ *  36 | A9
+ *  35 | A10
+ *  34 | A11
+ *  33 | A12
+ *  32 | A13
+ *  31 | A14
+ *  30 | A15 (PC7)
  * ----+--------------
- *  A0 | EEPROM WE
- *  A1 | EEPROM OE
- *  A2 | EEPROM CE
+ *  52 | EEPROM WE
+ *  50 | EEPROM OE
+ *  51 | EEPROM CE
  * ----+--------------
  *  13 | Activity LED
  * ----+--------------
@@ -55,12 +66,12 @@ typedef enum {
 } error;
 
 const unsigned int MAX_PAYLOAD = 63;
-const unsigned int DELAY_US = 10;
+const unsigned int DELAY_US = 15;
 
 // AT28C256 contol lines
-// const unsigned int EEPROM_WE = A0;
-const unsigned int EEPROM_OE = 41;
-const unsigned int EEPROM_CE = 40;
+const unsigned int EEPROM_WE = 52;
+const unsigned int EEPROM_OE = 50;
+const unsigned int EEPROM_CE = 51;
 
 // 74HC595 control lines
 // const unsigned int SHIFT_OE = A3;
@@ -76,6 +87,7 @@ const unsigned int ACT_LED = 13;
 // const unsigned int dataPins[] = {2, 3, 4, 5, 6, 7, 8, 9};
 
 #define DATA_IN  (PINL)
+#define DATA_OUT (PORTL)
 #define ADDR_H   (PORTC)
 #define ADDR_L   (PORTA)
 
@@ -109,13 +121,11 @@ void setup() {
 
   pinMode(EEPROM_CE, OUTPUT);
   pinMode(EEPROM_OE, OUTPUT);
+  pinMode(EEPROM_WE, OUTPUT);
 
   DATA_DIR = DIR_IN;
   ADDR_H_DIR = DIR_OUT;
   ADDR_L_DIR = DIR_OUT;
-
-  digitalWrite(EEPROM_CE, HIGH);
-  digitalWrite(EEPROM_OE, HIGH);
 
   pinMode(ACT_LED, OUTPUT);
   digitalWrite(ACT_LED, LOW);
@@ -221,7 +231,20 @@ byte readAddr(unsigned int addr) {
  * to be HIGH prior to invocation.
  */
 void writeAddr(unsigned int addr, byte val) {
+  loadShiftAddr(addr);
 
+  writeMode();
+
+  // load data byte
+  DATA_OUT = val;
+  delayMicroseconds(DELAY_US);
+
+  digitalWrite(EEPROM_WE, LOW);
+  delayMicroseconds(DELAY_US);
+  digitalWrite(EEPROM_WE, HIGH);
+
+  delayMicroseconds(DELAY_US);
+  standbyMode();
 }
 
 /*
@@ -235,7 +258,7 @@ int dump() {
   byte payload[MAX_PAYLOAD];
   unsigned int i = 0;
 
-  for (unsigned int addr = 0; addr < 32768; addr++) {
+  for (unsigned int addr = 0; addr < 8192; addr++) {
     i = addr % MAX_PAYLOAD;
 
     if (addr > 0 && i == 0) {
@@ -289,15 +312,13 @@ int load(unsigned int len) {
  * Returns 0 on success, or -1 on error.
  */
 int writeMode() {
-  // digitalWrite(EEPROM_CE, LOW);
-  // digitalWrite(EEPROM_OE, HIGH);
-  // digitalWrite(EEPROM_WE, HIGH);
+  digitalWrite(EEPROM_CE, LOW);
+  digitalWrite(EEPROM_OE, HIGH);
+  digitalWrite(EEPROM_WE, HIGH);
 
-  // for (unsigned int i = 0; i < 8; i++) {
-  //   pinMode(dataPins[i], OUTPUT);
-  // }
+  DATA_DIR = DIR_OUT;
 
-  // delayMicroseconds(DELAY_US);
+  delayMicroseconds(DELAY_US);
   mode = WRITE;
   return 0;
 }
@@ -310,10 +331,13 @@ int writeMode() {
  */
 int readMode() {
   if (mode != READ) {
-  
+    DATA_DIR = DIR_IN;
+
     digitalWrite(EEPROM_CE, LOW);
-    delayMicroseconds(DELAY_US);
     digitalWrite(EEPROM_OE, LOW);
+    digitalWrite(EEPROM_WE, HIGH);
+
+    delayMicroseconds(DELAY_US);
     mode = READ;
   }
   return 0;

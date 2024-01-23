@@ -112,7 +112,7 @@ Address supports hex (0xFF) and octal (0o7) notation.
         with open(filename, 'wb') as f:
             self.fdump(f)
 
-    def fdump(self, f: IO, size=0x8000, console=sys.stdout) -> None:
+    def fdump(self, f: IO, size=0x2000, console=sys.stdout) -> None:
         self._send(b'd')     # send dump command
 
         cnt = 0
@@ -193,12 +193,13 @@ Address supports hex (0xFF) and octal (0o7) notation.
         result.seek(0)
 
         if result.getvalue() != data.getvalue():
-            with NamedTemporaryFile(prefix='local') as local:
-                with NamedTemporaryFile(prefix='eeprom') as remote:
+            with open('test.bin', 'wb') as local:
+                with open('eeprom.bin', 'wb') as remote:
                     local.write(data.getvalue())
                     local.flush()
                     remote.write(result.getvalue())
                     remote.flush()
+                    print('files: ', local.name, ', ', remote.name)
 
                     os.system('diff -U 3 -a %s %s | less' % (local.name, remote.name))
         else:
@@ -244,12 +245,12 @@ if __name__ == '__main__':
     dump_cmd = cmds.add_parser('dump',
                                help='dumps the entire contents of the EEPOM to stdout')
     dump_cmd.add_argument('-s', '--size', help='only dump the first n bytes',
-                          type=int, required=False, default=0x8000)
+                          type=int, required=True, default=0x8000)
     cmds.add_parser('load', help='loads up to 32kb of stdin onto the EEPROM')
     test_cmd = cmds.add_parser('test', help='writes random data and reads it '
                                             'back for verification')
     test_cmd.add_argument('-s', '--size', help='write only n bytes of test data',
-                          type=int, required=False, default=0x8000)
+                          type=int, required=True, default=0x8000)
     args = parser.parse_args()
 
     dev = args.port
