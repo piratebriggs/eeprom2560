@@ -58,22 +58,33 @@ const unsigned int MAX_PAYLOAD = 63;
 const unsigned int DELAY_US = 10;
 
 // AT28C256 contol lines
-const unsigned int EEPROM_WE = A0;
-const unsigned int EEPROM_OE = A1;
-const unsigned int EEPROM_CE = A2;
+// const unsigned int EEPROM_WE = A0;
+const unsigned int EEPROM_OE = 41;
+const unsigned int EEPROM_CE = 40;
 
 // 74HC595 control lines
-const unsigned int SHIFT_OE = A3;
-const unsigned int SHIFT_SER = A4;
-const unsigned int SHIFT_RCLK = 12;
-const unsigned int SHIFT_SCLK = 11;
-const unsigned int SHIFT_CLR = 13;
+// const unsigned int SHIFT_OE = A3;
+// const unsigned int SHIFT_SER = A4;
+// const unsigned int SHIFT_RCLK = 12;
+// const unsigned int SHIFT_SCLK = 11;
+// const unsigned int SHIFT_CLR = 13;
 
 // Activity indicator LED
-const unsigned int ACT_LED = 10;
+const unsigned int ACT_LED = 13;
 
 // Data pins (LSB to MSB)
-const unsigned int dataPins[] = {2, 3, 4, 5, 6, 7, 8, 9};
+// const unsigned int dataPins[] = {2, 3, 4, 5, 6, 7, 8, 9};
+
+#define DATA_IN  (PINL)
+#define ADDR_H   (PORTC)
+#define ADDR_L   (PORTA)
+
+
+#define DIR_IN  0x00
+#define DIR_OUT 0xFF
+#define DATA_DIR   DDRL
+#define ADDR_H_DIR DDRC
+#define ADDR_L_DIR DDRA
 
 MODE mode = STANDBY;
 error errno = OK;
@@ -98,16 +109,13 @@ void setup() {
 
   pinMode(EEPROM_CE, OUTPUT);
   pinMode(EEPROM_OE, OUTPUT);
-  pinMode(EEPROM_WE, OUTPUT);
 
-  pinMode(SHIFT_OE, OUTPUT);
-  pinMode(SHIFT_SER, OUTPUT);
-  pinMode(SHIFT_RCLK, OUTPUT);
-  pinMode(SHIFT_SCLK, OUTPUT);
-  pinMode(SHIFT_CLR, OUTPUT);
+  DATA_DIR = DIR_IN;
+  ADDR_H_DIR = DIR_OUT;
+  ADDR_L_DIR = DIR_OUT;
 
-  digitalWrite(SHIFT_OE, LOW);
-  digitalWrite(SHIFT_CLR, HIGH);
+  digitalWrite(EEPROM_CE, HIGH);
+  digitalWrite(EEPROM_OE, HIGH);
 
   pinMode(ACT_LED, OUTPUT);
   digitalWrite(ACT_LED, LOW);
@@ -185,28 +193,25 @@ void pulse(int pin) {
  * Loads the specified 16 bit address into the 595 shift register.
  */
 void loadShiftAddr(unsigned int addr) {
-  for (int i = 15; i >= 0; i--) {
-    digitalWrite(SHIFT_SER, ((addr >> i) & 1) ? HIGH : LOW);
-    delayMicroseconds(DELAY_US);
-    pulse(SHIFT_SCLK);
-  }
-  delayMicroseconds(DELAY_US);
-  pulse(SHIFT_RCLK);
+  // ADDR_L = addr && 0xff;
+  // ADDR_H = (addr >> 8) && 0xff;
+  ADDR_L = addr;
+  ADDR_H = addr >> 8;
+//  delayMicroseconds(DELAY_US);
 }
 
 /*
  * Returns the byte at the specified address.
  */
 byte readAddr(unsigned int addr) {
-  readMode();
+  standbyMode();
+  delayMicroseconds(DELAY_US);
   loadShiftAddr(addr);
   delayMicroseconds(DELAY_US);
-
-  byte val = 0;
-  for (unsigned int i = 0; i < 8; i++) {
-    val |= (digitalRead(dataPins[i]) << i);
-  }
-  standbyMode();
+  readMode();
+  delayMicroseconds(DELAY_US);
+  byte val = DATA_IN;
+  delayMicroseconds(DELAY_US);
   return val;
 }
 
@@ -216,22 +221,7 @@ byte readAddr(unsigned int addr) {
  * to be HIGH prior to invocation.
  */
 void writeAddr(unsigned int addr, byte val) {
-  loadShiftAddr(addr);
 
-  writeMode();
-
-  // load data byte
-  for (unsigned int i = 0; i < 8; i++) {
-    digitalWrite(dataPins[i], (val >> i) & 1);
-  }
-  delayMicroseconds(DELAY_US);
-
-  digitalWrite(EEPROM_WE, LOW);
-  delayMicroseconds(DELAY_US);
-  digitalWrite(EEPROM_WE, HIGH);
-
-  delayMicroseconds(DELAY_US);
-  standbyMode();
 }
 
 /*
@@ -299,15 +289,15 @@ int load(unsigned int len) {
  * Returns 0 on success, or -1 on error.
  */
 int writeMode() {
-  digitalWrite(EEPROM_CE, LOW);
-  digitalWrite(EEPROM_OE, HIGH);
-  digitalWrite(EEPROM_WE, HIGH);
+  // digitalWrite(EEPROM_CE, LOW);
+  // digitalWrite(EEPROM_OE, HIGH);
+  // digitalWrite(EEPROM_WE, HIGH);
 
-  for (unsigned int i = 0; i < 8; i++) {
-    pinMode(dataPins[i], OUTPUT);
-  }
+  // for (unsigned int i = 0; i < 8; i++) {
+  //   pinMode(dataPins[i], OUTPUT);
+  // }
 
-  delayMicroseconds(DELAY_US);
+  // delayMicroseconds(DELAY_US);
   mode = WRITE;
   return 0;
 }
@@ -320,30 +310,20 @@ int writeMode() {
  */
 int readMode() {
   if (mode != READ) {
-    for (unsigned int i = 0; i < 8; i++) {
-      pinMode(dataPins[i], INPUT);
-    }
   
     digitalWrite(EEPROM_CE, LOW);
-    digitalWrite(EEPROM_OE, LOW);
-    digitalWrite(EEPROM_WE, HIGH);
-  
     delayMicroseconds(DELAY_US);
+    digitalWrite(EEPROM_OE, LOW);
     mode = READ;
   }
   return 0;
 }
 
 int standbyMode() {
-  for (unsigned int i = 0; i < 8; i++) {
-    pinMode(dataPins[i], INPUT);
-  }
 
-  digitalWrite(EEPROM_OE, LOW);
+  digitalWrite(EEPROM_OE, HIGH);
   digitalWrite(EEPROM_CE, HIGH);
-  digitalWrite(EEPROM_WE, HIGH);
 
-  delayMicroseconds(DELAY_US);
   mode = STANDBY;
   return 0;
 }

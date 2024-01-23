@@ -18,7 +18,7 @@ import argparse
 import atexit
 import os
 import random
-import readline
+# import readline
 import sys
 from io import BytesIO
 from itertools import islice
@@ -281,15 +281,15 @@ if __name__ == '__main__':
         elif args.cmd == 'test':
             eeprom.test(size=str(args.size))
         else:
-            histfile = os.path.join(os.path.expanduser("~"), ".eeprom_history")
-            try:
-                readline.read_history_file(histfile)
-                # default history len is -1 (infinite), which may grow unruly
-                readline.set_history_length(1000)
-            except FileNotFoundError:
-                pass
+            # histfile = os.path.join(os.path.expanduser("~"), ".eeprom_history")
+            # try:
+            #     readline.read_history_file(histfile)
+            #     # default history len is -1 (infinite), which may grow unruly
+            #     readline.set_history_length(1000)
+            # except FileNotFoundError:
+            #     pass
 
-            atexit.register(readline.write_history_file, histfile)
+            # atexit.register(readline.write_history_file, histfile)
             eeprom.repl()
     except (KeyboardInterrupt, BrokenPipeError):
         eeprom.reset()
